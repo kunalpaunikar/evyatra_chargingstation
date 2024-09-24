@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EV Yatra - Public Charging Stations</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f4f4f4;
+            color: #333;
+            scroll-behavior: smooth;
+        }
+
+        header {
+            background: #004aad;
+            color: white;
+            padding: 1rem 0;
+            text-align: center;
+        }
+
+        .logo h1 {
+            margin: 0;
+        }
+
+        nav ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        nav ul li {
+            display: inline;
+            margin: 0 15px;
+        }
+
+        nav ul li a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            transition: color 0.3s;
+        }
+
+        nav ul li a:hover {
+            color: #ffcc00;
+        }
+
+        .hero {
+            background-color: #0099cc;
+            color: white;
+            padding: 3rem;
+            text-align: center;
+        }
+
+        .hero h2 {
+            margin-bottom: 1rem;
+        }
+
+        #searchForm input {
+            padding: 0.5rem;
+            width: 200px;
+            border-radius: 5px;
+            border: none;
+        }
+
+        #searchForm button {
+            padding: 0.5rem 1rem;
+            background-color: #004aad;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #searchForm button:hover {
+            background-color: #002f73;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            margin: 2rem 0;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid #004aad;
+            border-radius: 5px 5px 0 0;
+            background: #fff;
+            margin: 0 5px;
+            transition: background 0.3s;
+        }
+
+        .tab:hover {
+            background: #f1f1f1;
+        }
+
+        .tab.active {
+            background: #004aad;
+            color: white;
+        }
+
+        .content {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-top: none;
+            background: white;
+            border-radius: 0 0 5px 5px;
+        }
+
+        .content.active {
+            display: block;
+        }
+
+        .stations {
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .station-list {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .station {
+            background-color: white;
+            padding: 1rem;
+            margin: 1rem;
+            border: 1px solid #ddd;
+            width: 250px;
+            border-radius: 5px;
+            transition: transform 0.3s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .station:hover {
+            transform: scale(1.05);
+        }
+
+        .map {
+            padding: 2rem;
+            text-align: center;
+        }
+
+        #mapContainer {
+            width: 100%;
+            height: 400px;
+            background-color: #eee;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        footer {
+            background-color: #004aad;
+            color: white;
+            text-align: center;
+            padding: 1rem 0;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="logo">
+            <h1>EV Yatra</h1>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="#home">Home</a></li>
+                <li><a href="#stations">Stations</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section class="hero" id="home">
+        <h2>Find Your Nearest EV Charging Station</h2>
+        <form id="searchForm">
+            <input type="text" placeholder="Enter location..." id="locationInput">
+            <button type="submit">Search</button>
+        </form>
+    </section>
+
+    <div class="tabs">
+        <div class="tab active" data-target="#stationsContent">Stations</div>
+        <div class="tab" data-target="#mapContent">Map</div>
+    </div>
+
+    <div class="content active" id="stationsContent">
+        <section class="stations">
+            <h3>Charging Stations</h3>
+            <div class="station-list"></div>
+        </section>
+    </div>
+
+    <div class="content" id="mapContent">
+        <section class="map">
+            <h3>Map View</h3>
+            <div id="mapContainer"></div>
+            <div id="infoPanel" style="padding: 10px; background-color: #fff; border-radius: 5px; margin-top: 10px;"></div>
+        </section>
+    </div>
+
+    <footer>
+        <p>&copy; 2023 EV Yatra. All rights reserved.</p>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+
+    <script>
+        const apiKey = 'c9c31b83-87ce-4ff8-941f-c9da3a7b9e76'; // Replace with your Open Charge Map API Key
+        let map, routingControl;
+
+        function initMap(lat, lon) {
+            // Initialize the map only once
+            if (!map) {
+                map = L.map('mapContainer').setView([lat, lon], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '© OpenStreetMap'
+                }).addTo(map);
+            } else {
+                map.setView([lat, lon], 13); // Reposition the map
+            }
+        }
+
+        function fetchChargingStations(lat, lon) {
+            const url = `https://api.openchargemap.io/v3/poi/?output=json&latitude=${lat}&longitude=${lon}&maxresults=10&key=${apiKey}`;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const stationList = document.querySelector('.station-list');
+                    stationList.innerHTML = ''; // Clear previous station data
+
+                    if (data.length > 0) {
+                        document.getElementById('mapContainer').style.display = 'block'; // Show the map container
+                        initMap(lat, lon); // Initialize or reposition the map
+                    } else {
+                        alert("No charging stations found.");
+                        return;
+                    }
+
+                    data.forEach(station => {
+                        const stationElement = document.createElement('div');
+                        stationElement.classList.add('station');
+
+                        stationElement.innerHTML = `
+                            <h4>${station.AddressInfo.Title}</h4>
+                            <p>Address: ${station.AddressInfo.AddressLine1}</p>
+                            <p>Distance: ${(station.AddressInfo.Distance || 'N/A')} km</p>
+                            <button class="navigate" data-lat="${station.AddressInfo.Latitude}" data-lon="${station.AddressInfo.Longitude}">Navigate</button>
+                        `;
+
+                        stationList.appendChild(stationElement);
+
+                        // Add marker to the map
+                        L.marker([station.AddressInfo.Latitude, station.AddressInfo.Longitude])
+                            .addTo(map)
+                            .bindPopup(station.AddressInfo.Title);
+                    });
+
+                 // Manually add two more charging stations (example data)
+                    const manualStations = [
+                        {
+                            AddressInfo: {
+                                Title: "Jagnade Square Charging Station",
+                                AddressLine1: "Jagnade Square, Nagpur",
+                                Latitude: 21.1321,
+                                Longitude: 79.0962,
+                                Distance: 2.5
+                            }
+                        },
+                        {
+                            AddressInfo: {
+                                Title: "Chapru Nagar Charging Station",
+                                AddressLine1: "Chapru Nagar, Nagpur",
+                                Latitude: 21.1537,
+                                Longitude: 79.0716,
+                                Distance: 4.3
+                            }
+                        }
+                    ];
+
+                    // You can merge the fetched data with the manual stations
+                    data = [...data, ...manualStations];
+                                        
+                    // Handle navigation button clicks
+                    const navigateButtons = document.querySelectorAll('.navigate');
+                    navigateButtons.forEach(button => {
+                        button.addEventListener('click', function () {
+                            const lat = this.getAttribute('data-lat');
+                            const lon = this.getAttribute('data-lon');
+
+                            if (navigator.geolocation) {
+                                navigator.geolocation.getCurrentPosition(position => {
+                                    const userLat = position.coords.latitude;
+                                    const userLon = position.coords.longitude;
+
+                                    if (routingControl) {
+                                        map.removeControl(routingControl); // Remove previous route
+                                    }
+
+                                    routingControl = L.Routing.control({
+                                        waypoints: [
+                                            L.latLng(userLat, userLon),
+                                            L.latLng(lat, lon)
+                                        ],
+                                        routeWhileDragging: true
+                                    }).addTo(map);
+                                });
+                            }
+                        });
+                    });
+                })
+                .catch(error => console.error('Error fetching charging stations:', error));
+        }
+
+        // Handle location input form submission
+        document.getElementById('searchForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const location = document.getElementById('locationInput').value;
+
+            // For demonstration, you can hardcode a lat/lon or implement a geocoding API
+            const lat = 21.1458; // Example latitude (replace with geocoding result)
+            const lon = 79.0882; // Example longitude (replace with geocoding result)
+
+            fetchChargingStations(lat, lon);
+        });
+
+        // Default fetching of charging stations around Nagpur (21.146, 79.073)
+        fetchChargingStations(21.146, 79.073);
+        initMap(21.146, 79.073); // Initialize map on page load
+
+        // Tab navigation logic
+        const tabs = document.querySelectorAll('.tab');
+        const contents = document.querySelectorAll('.content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function () {
+                tabs.forEach(t => t.classList.remove('active'));
+                contents.forEach(c => c.classList.remove('active'));
+
+                this.classList.add('active');
+                const target = this.getAttribute('data-target');
+                document.querySelector(target).classList.add('active');
+            });
+        });
+        function logNavigationToDB(station) {
+            fetch('/logNavigation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    stationTitle: station.AddressInfo.Title,
+                    stationAddress: station.AddressInfo.AddressLine1,
+                    timestamp: new Date().toISOString()
+                })
+            }).then(response => {
+                if (response.ok) {
+                    console.log('Navigation logged successfully');
+                } else {
+                    console.error('Error logging navigation');
+                }
+            }).catch(error => console.error('Error:', error));
+        }
+
+        // Add this inside your "Navigate" button event listener
+        button.addEventListener('click', function () {
+            const lat = this.getAttribute('data-lat');
+            const lon = this.getAttribute('data-lon');
+
+            // Get the clicked station details
+            const station = {
+                AddressInfo: {
+                    Title: this.parentElement.querySelector('h4').innerText,
+                    AddressLine1: this.parentElement.querySelector('p').innerText.split(': ')[1]
+                }
+            };
+
+            logNavigationToDB(station); // Log to database
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const userLat = position.coords.latitude;
+                    const userLon = position.coords.longitude;
+
+                    if (routingControl) {
+                        map.removeControl(routingControl);
+                    }
+
+                    routingControl = L.Routing.control({
+                        waypoints: [
+                            L.latLng(userLat, userLon),
+                            L.latLng(lat, lon)
+                        ],
+                        routeWhileDragging: true
+                    }).addTo(map);
+                });
+            }
+        });
+                
+    </script>
+</body>
+
+</html>
